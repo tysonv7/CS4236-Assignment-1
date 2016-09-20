@@ -1,33 +1,46 @@
 /*--------
 (1) Read in a Rainbow table (built using B.cpp)
-(2) Read 1000 digests from standard input and  output the preimage. 
+(2) Read 5000 digests from standard input and  output the preimage.
 ------------*/
 
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <unordered_map>
-#include <iomanip>
+
 #include "sha1.h"
 
 using namespace std;
-unsigned long TOTAL_SHA=0;       // Count the number of hashes performed.
+unsigned long TOTAL_SHA = 0;       // Count the number of hashes performed.
 
-unsigned char M[1024*512][3];    // array to store the word read from the table (head of chain)
-unsigned int  D[1024*512][5];    // array to store the digest read from the table  (end of chain)
+const int maxChainLength = 256;
+const int maxNumberOfChains = 65536;
+
+const int maxDigestSize = 5;
+const int maxWordSize = 3;
+
+const int maxArraySize = 1024 * 512;
+
+unsigned char wordArray[maxArraySize][maxWordSize];   // array to store the word read from the table (head of chain)
+unsigned int digestArray[maxArraySize][maxDigestSize];   // array to store the digest read from the table  (end of chain)
 
 //-------   Data Structure for searching    -----------//
-unordered_map <unsigned int, unsigned int> HashTable;
-unordered_map <unsigned int, unsigned int>::const_iterator G;
-
+std::unordered_map<unsigned int, int> hashTable;
+std::unordered_map<unsigned int, int>::const_iterator hashTableIterator;
 
 //-----------    Hash     ----------------------------//
-int Hash (unsigned char m[3], unsigned int d[5] )
+void Hash(unsigned char word[maxWordSize], unsigned int digest[maxDigestSize])
 {
-   SHA1 sha;
-   sha.Reset(); sha.Input(m[0]); sha.Input(m[1]); sha.Input(m[2]);  
-   sha.Result(d);
+	SHA1 sha;
 
-   TOTAL_SHA = TOTAL_SHA +1;
-   return(0);
+	sha.Reset();
+
+	sha.Input(word[0]);
+	sha.Input(word[1]);
+	sha.Input(word[2]);
+
+	sha.Result(digest);
+	TOTAL_SHA = TOTAL_SHA + 1;
 }
 
 //-----------    Reduce  -----------------------------//
@@ -35,114 +48,196 @@ int Hash (unsigned char m[3], unsigned int d[5] )
 //   m:   output word
 //   i:   the index of the reduce function 
 //---------------------------------------------------//
-int Reduce (unsigned int d[5], unsigned char m[3],  int i )
+void Reduce(unsigned int digest[5], unsigned char word[3], int reduction_index)
 {
-   m[0]=(unsigned char)( (d[0]+i ) %256);   //8 bits
-   m[1]=(unsigned char)( (d[1]   ) %256);   //8 bits
-   m[2]=(unsigned char)( (d[2]   ) %256);   //8 bits
-
-   return(0);
+	word[0] = (unsigned char)((digest[0] + reduction_index) % 256);   //8 bits
+	word[1] = (unsigned char)((digest[1]) % 256);   //8 bits
+	word[2] = (unsigned char)((digest[2]) % 256);   //8 bits
 }
 
 
 //------------  Read in the Table ------------------//
-//   Store the result in M and D                    //
-int ReadT()
+//   Store the result in M and D 
+void ReadInRainbowTable(char* file_name)
 {
-  return(0);
-}
+	FILE *input_file = fopen(file_name, "r");
 
+	for (int i = 0; i < maxNumberOfChains; i++)
+	{
+		fread(&(wordArray[i][0]), sizeof(unsigned char), 1, input_file);
+		fread(&(wordArray[i][1]), sizeof(unsigned char), 1, input_file);
+		fread(&(wordArray[i][2]), sizeof(unsigned char), 1, input_file);
 
-//------------------------------------------------------------------------------------
-//      Given a digest,  search for the pre-image   answer_m[3].
-//------------------------------------------------------------------------------------
-int search( unsigned int target_d[5] ,   unsigned char answer_m[3])
-{
-  unsigned int j,i;
-  unsigned char Colour_m[MAX_LEN ][3];
-  unsigned int  Colour_d[MAX_LEN ][5];
-  unsigned int  flag    [MAX_LEN ];
+		fread(&(digestArray[i][0]), sizeof(unsigned int), 1, input_file);
 
+		hashTable.insert(std::pair<unsigned int, int>(digestArray[i][0], i));
+	}
 
-  for ( j=0; j< L_CHAIN ;  j++)
-      {
-          Colour_d[j][0]= target_d[0];
-          Colour_d[j][1]= target_d[1];
-          Colour_d[j][2]= target_d[2];
-          Colour_d[j][3]= target_d[3];
-          Colour_d[j][4]= target_d[4];
-      }
-
-  for ( j=0; j< L_CHAIN ;  j++)
-  {
-     for (int k=0; k< j+1 ; k++)
-        {
-               Reduce ( Colour_d[k], Colour_m[k], j); 
-               Hash ( Colour_m[k], Colour_d[k] );
-    
-               //-------- search for the digest Colour_d[k] in the data structure. 
-
-               //-------- if found, call transverse the chain starting from the head to find the pre-image.
-
-        }
-  }
-  return (0);
+	fclose(input_file);
 }
 
 
 //-----------   reading the next digest from the standard input  ----------------//
-void readnextd (unsigned  int d[5])
+void ReadNextDigest(unsigned int d[maxDigestSize], std::ifstream &infile)
 {
-   cin.setf(ios::hex,ios::basefield); cin.setf(ios::uppercase);
-   cin >> d[0]; cin >> d[1]; cin >> d[2]; cin >> d[3]; cin >> d[4]; 
+	unsigned int digest_fragment;
+
+	for (int i = 0; i < 5; i++)
+	{
+		infile >> std::hex >> digest_fragment;
+		d[i] = digest_fragment;
+	}
+
+}
+
+bool IsSameDigest(unsigned int d1[maxDigestSize], unsigned int d2[maxDigestSize])
+{
+	return (d1[0] == d2[0]);
 }
 
 
-int main( int argc, char*argv[])
+bool TestCandidate(unsigned int d[maxDigestSize], unsigned char answer[maxWordSize])
 {
-    int found;
-    int total_found;
-    int total_not_found;
+	bool is_valid_candidate;
 
-    SHA1        sha;
-    unsigned int d[5];   // 32 x 5 = 160 bits
+	int i = hashTable[d[0]];
 
+	// find the head of the chain
+	unsigned char curr_word[maxWordSize];
 
+	curr_word[0] = wordArray[i][0];
+	curr_word[1] = wordArray[i][1];
+	curr_word[2] = wordArray[i][2];
 
-    //------------ R E A D     R A I N B O W    T A B L E  --------//
-    ReadT();       cout << "READ DONE" << endl;
+	unsigned int curr_digest[maxDigestSize];
 
+	for (int i = 0; i < maxChainLength; i++)
+	{
+		Hash(curr_word, curr_digest);
+		Reduce(curr_digest, curr_word, i);
 
-    //--------  PROJECT  INPUT/OUTPUT FORMAT ----------------//
+		if (IsSameDigest(curr_digest, d))
+		{
+			is_valid_candidate = true;
 
-    total_found=0;
-    total_not_found=0;
+			answer[0] = curr_word[0];
+			answer[1] = curr_word[1];
+			answer[2] = curr_word[2];
+			break;
+		}
+	}
 
-    cout.setf(ios::hex,ios::basefield);       //   setting display to Hexdecimal format.  (this is the irritating part of using C++).
-    cout.setf(ios::uppercase); 
+	return is_valid_candidate;
+}
 
-    for (int i=0; i<5000; i++)
-      { 
-        readnextd(d); 
-        if (search (d,m)) 
-               { total_found ++;
-                 //------   print the word in hexdecimal format   -----------
-                 cout << setw(1) << (unsigned int)m2[0]/16;
-                 cout << setw(1) << (unsigned int)m2[0]%8;
-                 cout << setw(1) << (unsigned int)m2[1]/16;
-                 cout << setw(1) << (unsigned int)m2[1]%8;
-                 cout << setw(1) << (unsigned int)m2[2]/16;
-                 cout << setw(1) << (unsigned int)m2[2]%8  << endl;
-                } 
-        else
-               {  total_not_found ++;
-                  cout << setw(6)<< 0 << endl;
-               }
-      }
- 
-    cout.setf(ios::dec);
-    cout << "Accuracy       C is: " << total_found/5000.0 << endl;
-    cout << "Speedup factor F is: " << (5000.0/TOTAL_SHA)*8388608 << endl;
+//------------------------------------------------------------------------------------
+//      Given a digest,  search for the pre-image   answer_m[3].
+//------------------------------------------------------------------------------------
+bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
+{
+	bool isFound = false;
 
+	unsigned char colour_word[maxChainLength][maxWordSize];
+	unsigned int colour_digest[maxChainLength][maxDigestSize];
+
+	unsigned char curr_answer[maxWordSize];
+
+	int i, j, k;
+
+	// fills the starting point of the chain rows with the target digest
+	for (j = 0; j < maxChainLength; j++)
+	{
+		colour_digest[j][0] = target_digest[0];
+		colour_digest[j][1] = target_digest[1];
+		colour_digest[j][2] = target_digest[2];
+		colour_digest[j][3] = target_digest[3];
+		colour_digest[j][4] = target_digest[4];
+	}
+
+	for (i = 0; i < maxChainLength; i++)
+	{
+		for (k = 0; k < i + 1; k++)
+		{
+			Reduce(colour_digest[k], colour_word[k], i);
+			Hash(colour_word[k], colour_digest[k]);
+
+			//-------- search for the digest Colour_d[k] in the data structure. 
+
+			//-------- if found, call transverse the chain starting from the head to find the pre-image.
+		}
+
+		hashTableIterator = hashTable.find(colour_digest[i][0]);
+
+		if (hashTableIterator != hashTable.end())
+		{
+			isFound = TestCandidate(colour_digest[i], curr_answer);
+
+			if (isFound)
+			{
+				answer[0] = curr_answer[0];
+				answer[1] = curr_answer[1];
+				answer[2] = curr_answer[2];
+			}
+		}
+	}
+
+	return isFound;
+}
+
+void SearchDigestFile(char* digest_file_name)
+{
+	unsigned int d[maxDigestSize];
+	unsigned char curr_answer[maxWordSize];
+
+	//--------  PROJECT  INPUT/OUTPUT FORMAT ----------------//
+	int total_digests_found = 0;
+	int total_digests_not_found = 0;
+
+	std::ifstream digest_file(digest_file_name, std::ios::binary);
+
+	std::cout.setf(std::ios::hex, std::ios::basefield);  //   setting display to Hexdecimal format.  (this is the irritating part of using C++).
+	std::cout.setf(std::ios::uppercase);
+
+	for (int i = 0; i < 5000; i++)
+	{
+		ReadNextDigest(d, digest_file);
+
+		if (Search(d, curr_answer) == true)
+		{
+			total_digests_found++;
+			//------   print the word in hexdecimal format   -----------
+			std::cout << std::setw(1) << (unsigned int)curr_answer[0] / 16;
+			std::cout << std::setw(1) << (unsigned int)curr_answer[0] % 8;
+			std::cout << std::setw(1) << (unsigned int)curr_answer[1] / 16;
+			std::cout << std::setw(1) << (unsigned int)curr_answer[1] % 8;
+			std::cout << std::setw(1) << (unsigned int)curr_answer[2] / 16;
+			std::cout << std::setw(1) << (unsigned int)curr_answer[2] % 8 << std::endl;
+
+		}
+
+		else
+		{
+			total_digests_not_found++;
+			std::cout << std::setw(6) << 0 << std::endl;
+		}
+	}
+
+	digest_file.close();
+
+	std::cout.setf(std::ios::dec);
+	cout << "Accuracy       C is: " << total_digests_found / 5000.0 << endl;
+	cout << "Speedup factor F is: " << (5000.0 / TOTAL_SHA) * 8388608 << endl;
+}
+
+int main(int argc, char* argv[])
+{
+	SHA1 sha;
+	//------------ R E A D     R A I N B O W    T A B L E  --------//
+	ReadInRainbowTable(argv[1]);
+	cout << "READ DONE" << endl;
+
+	SearchDigestFile(argv[2]);
+
+	return 0;
 }
 
