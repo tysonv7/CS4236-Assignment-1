@@ -61,8 +61,8 @@ int Reduce1 (unsigned int digest[maxDigestSize], unsigned char word[maxWordSize]
 
 int Reduce2 (unsigned int digest[maxDigestSize], unsigned char word[maxWordSize],  int reductionIndex )
 {
-   word[0]=(unsigned char)( (digest[0]   ) %256); //8 bits
-   word[1]=(unsigned char)( (digest[1]  + reductionIndex  ) %256);   //8 bits 
+   word[0]=(unsigned char)( (digest[0]  - reductionIndex  ) %256); //8 bits
+   word[1]=(unsigned char)( (digest[1]   ) %256);   //8 bits 
    word[2]=(unsigned char)( (digest[2]   ) %256);   //8 bits
 
    return(0);

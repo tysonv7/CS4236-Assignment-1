@@ -57,8 +57,8 @@ void Reduce1(unsigned int digest[5], unsigned char word[3], int reductionIndex)
 
 void Reduce2(unsigned int digest[5], unsigned char word[3], int reductionIndex)
 {
-	word[0] = (unsigned char)((digest[0]) % 256);   //8 bits
-	word[1] = (unsigned char)((digest[1] + reductionIndex) % 256);   //8 bits
+	word[0] = (unsigned char)((digest[0] - reductionIndex) % 256);   //8 bits
+	word[1] = (unsigned char)((digest[1]) % 256);   //8 bits
 	word[2] = (unsigned char)((digest[2]) % 256);   //8 bits
 }
 
@@ -447,7 +447,7 @@ void SearchDigestFile(char* digest_file_name)
 	cout << "Number of Reduction Function 1 Use: " << reductionFunction1Count << endl;
 	cout << "Number of Reduction Function 2 Use: " << reductionFunction2Count << endl;
 	cout << "Number of Reduction Function 3 Use: " << reductionFunction3Count << endl;
-	cout << "Number of digests not found" << total_digests_not_found << endl;
+	cout << "Number of digests not found " << total_digests_not_found << endl;
 }
 
 int main(int argc, char* argv[])
