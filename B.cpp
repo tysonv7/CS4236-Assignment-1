@@ -99,8 +99,12 @@ int buildT1()
 		//building chain
 		for (int j = 0; j < maxLengthOfEachChain; j++) {
 			Hash(word, digest);
-			Reduce1(digest, word, j);
+			if (j % 2 ==0) {
+				Reduce1(digest, word, j);
+			} else {
+				Reduce2(digest, word, j);
 		}
+	}
 
 		//Checking if chain has been generated. Store if haven't generate. Or make a new random word if generated
 		hashtableIterator = HashTable.find(digest[0]);
@@ -266,7 +270,7 @@ int main( int argc, char*argv[])
    
     //----   Build the table.
     buildT1();
-    buildT2();
+    //buildT2();
     //buildT3();
     cout<<"Table Built. Exiting program now" <<endl;;
 	exit(0);

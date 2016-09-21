@@ -14,7 +14,7 @@ using namespace std;
 unsigned long TOTAL_SHA = 0;       // Count the number of hashes performed.
 
 const int maxChainLength = 256;
-const int maxNumberOfChains = 65536*3;
+const int maxNumberOfChains = 65536;
 
 const int maxDigestSize = 5;
 const int maxWordSize = 3;
@@ -113,7 +113,7 @@ bool IsSameDigest(unsigned int d1[maxDigestSize], unsigned int d2[maxDigestSize]
 }
 
 
-bool TestCandidateWithReduction1(unsigned int d[maxDigestSize], unsigned char answer[maxWordSize])
+bool TestCandidate(unsigned int d[maxDigestSize], unsigned char answer[maxWordSize])
 {
 	bool is_valid_candidate;
 
@@ -131,7 +131,11 @@ bool TestCandidateWithReduction1(unsigned int d[maxDigestSize], unsigned char an
 	for (int i = 0; i < maxChainLength; i++)
 	{
 		Hash(curr_word, curr_digest);
-		Reduce1(curr_digest, curr_word, i);
+		if (i % 2 ==0) {
+			Reduce1(curr_digest, curr_word, i);
+		} else {
+			Reduce2(curr_digest, curr_word, i);
+		}
 
 		if (IsSameDigest(curr_digest, d))
 		{
@@ -147,78 +151,12 @@ bool TestCandidateWithReduction1(unsigned int d[maxDigestSize], unsigned char an
 	return is_valid_candidate;
 }
 
-bool TestCandidateWithReduction2(unsigned int d[maxDigestSize], unsigned char answer[maxWordSize])
-{
-	bool is_valid_candidate;
 
-	int i = hashTable[d[0]];
-
-	// find the head of the chain
-	unsigned char curr_word[maxWordSize];
-
-	curr_word[0] = wordArray[i][0];
-	curr_word[1] = wordArray[i][1];
-	curr_word[2] = wordArray[i][2];
-
-	unsigned int curr_digest[maxDigestSize];
-
-	for (int i = 0; i < maxChainLength; i++)
-	{
-		Hash(curr_word, curr_digest);
-		Reduce2(curr_digest, curr_word, i);
-
-		if (IsSameDigest(curr_digest, d))
-		{
-			is_valid_candidate = true;
-
-			answer[0] = curr_word[0];
-			answer[1] = curr_word[1];
-			answer[2] = curr_word[2];
-			break;
-		}
-	}
-
-	return is_valid_candidate;
-}
-
-bool TestCandidateWithReduction3(unsigned int d[maxDigestSize], unsigned char answer[maxWordSize])
-{
-	bool is_valid_candidate;
-
-	int i = hashTable[d[0]];
-
-	// find the head of the chain
-	unsigned char curr_word[maxWordSize];
-
-	curr_word[0] = wordArray[i][0];
-	curr_word[1] = wordArray[i][1];
-	curr_word[2] = wordArray[i][2];
-
-	unsigned int curr_digest[maxDigestSize];
-
-	for (int i = 0; i < maxChainLength; i++)
-	{
-		Hash(curr_word, curr_digest);
-		Reduce3(curr_digest, curr_word, i);
-
-		if (IsSameDigest(curr_digest, d))
-		{
-			is_valid_candidate = true;
-
-			answer[0] = curr_word[0];
-			answer[1] = curr_word[1];
-			answer[2] = curr_word[2];
-			break;
-		}
-	}
-
-	return is_valid_candidate;
-}
 
 //------------------------------------------------------------------------------------
 //      Given a digest,  search for the pre-image   answer_m[3].
 //------------------------------------------------------------------------------------
-bool SearchWithReduction1(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
+bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
 {
 	bool isFound = false;
 
@@ -238,135 +176,47 @@ bool SearchWithReduction1(unsigned int target_digest[maxDigestSize], unsigned ch
 		colour_digest[j][3] = target_digest[3];
 		colour_digest[j][4] = target_digest[4];
 	}
-
+	
 	for (i = 0; i < maxChainLength; i++)
-	{
+    {
+        for (k = 0; k < i + 1; k++)
+        {
+            Reduce1(colour_digest[k], colour_word[k], i);
+            Hash(colour_word[k], colour_digest[k]);
+        }
+
+        hashTableIterator = hashTable.find(colour_digest[i][0]);
+
+        if (hashTableIterator != hashTable.end())
+        {
+            isFound = TestCandidate(colour_digest[i], curr_answer);
+
+            // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
+        } else{
 		for (k = 0; k < i + 1; k++)
 		{
-			Reduce1(colour_digest[k], colour_word[k], i);
-			Hash(colour_word[k], colour_digest[k]);
-
-			//-------- search for the digest Colour_d[k] in the data structure. 
-
-			//-------- if found, call transverse the chain starting from the head to find the pre-image.
+		    Reduce2(colour_digest[k], colour_word[k], i);
+		    Hash(colour_word[k], colour_digest[k]);
 		}
 
 		hashTableIterator = hashTable.find(colour_digest[i][0]);
 
 		if (hashTableIterator != hashTable.end())
 		{
-			isFound = TestCandidateWithReduction1(colour_digest[i], curr_answer);
+		    isFound = TestCandidate(colour_digest[i], curr_answer);
 
-			if (isFound)
-			{
-				answer[0] = curr_answer[0];
-				answer[1] = curr_answer[1];
-				answer[2] = curr_answer[2];
-			}
+		    // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
 		}
 	}
-
-	return isFound;
-}
-
-bool SearchWithReduction2(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
-{
-	bool isFound = false;
-
-	unsigned char colour_word[maxChainLength][maxWordSize];
-	unsigned int colour_digest[maxChainLength][maxDigestSize];
-
-	unsigned char curr_answer[maxWordSize];
-
-	int i, j, k;
-
-	// fills the starting point of the chain rows with the target digest
-	for (j = 0; j < maxChainLength; j++)
-	{
-		colour_digest[j][0] = target_digest[0];
-		colour_digest[j][1] = target_digest[1];
-		colour_digest[j][2] = target_digest[2];
-		colour_digest[j][3] = target_digest[3];
-		colour_digest[j][4] = target_digest[4];
-	}
-
-	for (i = 0; i < maxChainLength; i++)
-	{
-		for (k = 0; k < i + 1; k++)
-		{
-			Reduce2(colour_digest[k], colour_word[k], i);
-			Hash(colour_word[k], colour_digest[k]);
-
-			//-------- search for the digest Colour_d[k] in the data structure. 
-
-			//-------- if found, call transverse the chain starting from the head to find the pre-image.
-		}
-
-		hashTableIterator = hashTable.find(colour_digest[i][0]);
-
-		if (hashTableIterator != hashTable.end())
-		{
-			isFound = TestCandidateWithReduction2(colour_digest[i], curr_answer);
-
-			if (isFound)
-			{
-				answer[0] = curr_answer[0];
-				answer[1] = curr_answer[1];
-				answer[2] = curr_answer[2];
-			}
-		}
-	}
-
-	return isFound;
-}
-
-bool SearchWithReduction3(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
-{
-	bool isFound = false;
-
-	unsigned char colour_word[maxChainLength][maxWordSize];
-	unsigned int colour_digest[maxChainLength][maxDigestSize];
-
-	unsigned char curr_answer[maxWordSize];
-
-	int i, j, k;
-
-	// fills the starting point of the chain rows with the target digest
-	for (j = 0; j < maxChainLength; j++)
-	{
-		colour_digest[j][0] = target_digest[0];
-		colour_digest[j][1] = target_digest[1];
-		colour_digest[j][2] = target_digest[2];
-		colour_digest[j][3] = target_digest[3];
-		colour_digest[j][4] = target_digest[4];
-	}
-
-	for (i = 0; i < maxChainLength; i++)
-	{
-		for (k = 0; k < i + 1; k++)
-		{
-			Reduce3(colour_digest[k], colour_word[k], i);
-			Hash(colour_word[k], colour_digest[k]);
-
-			//-------- search for the digest Colour_d[k] in the data structure. 
-
-			//-------- if found, call transverse the chain starting from the head to find the pre-image.
-		}
-
-		hashTableIterator = hashTable.find(colour_digest[i][0]);
-
-		if (hashTableIterator != hashTable.end())
-		{
-			isFound = TestCandidateWithReduction3(colour_digest[i], curr_answer);
-
-			if (isFound)
-			{
-				answer[0] = curr_answer[0];
-				answer[1] = curr_answer[1];
-				answer[2] = curr_answer[2];
-			}
-		}
-	}
+	if (isFound)
+            {
+                answer[0] = curr_answer[0];
+                answer[1] = curr_answer[1];
+                answer[2] = curr_answer[2];
+            }
+    }
+	
+	
 
 	return isFound;
 }
@@ -393,7 +243,7 @@ void SearchDigestFile(char* digest_file_name)
 	{
 		ReadNextDigest(d, digest_file);
 
-		if (SearchWithReduction1(d, curr_answer) == true)
+		if (Search(d, curr_answer) == true)
 		{
 			cout << "Using Reduction Function 1" <<endl;
 			reductionFunction1Count++;
@@ -406,31 +256,7 @@ void SearchDigestFile(char* digest_file_name)
 			std::cout << std::setw(1) << (unsigned int)curr_answer[2] / 16;
 			std::cout << std::setw(1) << (unsigned int)curr_answer[2] % 8 << std::endl;
 
-		} else if (SearchWithReduction2(d, curr_answer) == true){
-			cout << "Using Reduction Function 2" <<endl;
-			reductionFunction2Count++;
-			total_digests_found++;
-			//------   print the word in hexdecimal format   -----------
-			std::cout << std::setw(1) << (unsigned int)curr_answer[0] / 16;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[0] % 8;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[1] / 16;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[1] % 8;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[2] / 16;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[2] % 8 << std::endl;
-			
-		} /*else if (SearchWithReduction3(d, curr_answer) == true){
-			cout << "Using Reduction Function 3" <<endl;
-			total_digests_found++;
-			reductionFunction3Count++;
-			//------   print the word in hexdecimal format   -----------
-			std::cout << std::setw(1) << (unsigned int)curr_answer[0] / 16;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[0] % 8;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[1] / 16;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[1] % 8;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[2] / 16;
-			std::cout << std::setw(1) << (unsigned int)curr_answer[2] % 8 << std::endl;
-			
-		}*/
+		}
 
 		else
 		{
