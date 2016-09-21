@@ -23,8 +23,8 @@ unordered_map <unsigned long, unsigned int> HashTable;
 unordered_map <unsigned long, unsigned int>::const_iterator hashtableIterator;
 const int maxDigestSize = 5;
 const int maxWordSize = 3;
-const int maxNumberOfChainsPerTable = 82000;
-const int maxLengthOfEachChain = 180;
+const int maxNumberOfChainsPerTable = 86000;
+const int maxLengthOfEachChain = 150;
 
 
 //----  return the next word to be considered 
