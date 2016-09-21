@@ -13,8 +13,8 @@
 using namespace std;
 unsigned long TOTAL_SHA = 0;       // Count the number of hashes performed.
 
-const int maxChainLength = 256;
-const int maxNumberOfChains = 65536;
+const int maxChainLength = 180;
+const int maxNumberOfChains = 82000;
 
 const int maxDigestSize = 5;
 const int maxWordSize = 3;
@@ -50,25 +50,24 @@ void Hash(unsigned char word[maxWordSize], unsigned int digest[maxDigestSize])
 //---------------------------------------------------//
 void Reduce1(unsigned int digest[5], unsigned char word[3], int reductionIndex)
 {
-	word[0] = (unsigned char)((digest[0] + reductionIndex) % 256);   //8 bits
-	word[1] = (unsigned char)((digest[1]) % 256);   //8 bits
-	word[2] = (unsigned char)((digest[2]) % 256);   //8 bits
+	word[0] = (unsigned char)((digest[2] + reductionIndex) % 256);   //8 bits
+	word[1] = (unsigned char)((digest[4] + reductionIndex) % 256);   //8 bits
+	word[2] = (unsigned char)((digest[3] + reductionIndex) % 256);   //8 bits
 }
 
 void Reduce2(unsigned int digest[5], unsigned char word[3], int reductionIndex)
 {
-	word[0] = (unsigned char)((digest[0] - reductionIndex) % 256);   //8 bits
-	word[1] = (unsigned char)((digest[1]) % 256);   //8 bits
-	word[2] = (unsigned char)((digest[2]) % 256);   //8 bits
+	word[0] = (unsigned char)((digest[2] - reductionIndex) % 256);   //8 bits
+	word[1] = (unsigned char)((digest[4] - reductionIndex) % 256);   //8 bits
+	word[2] = (unsigned char)((digest[3] - reductionIndex) % 256);   //8 bits
 }
 
 void Reduce3(unsigned int digest[5], unsigned char word[3], int reductionIndex)
 {
-	word[0] = (unsigned char)((digest[0]) % 256);   //8 bits
-	word[1] = (unsigned char)((digest[1]) % 256);   //8 bits
-	word[2] = (unsigned char)((digest[2] + reductionIndex) % 256);   //8 bits
+	word[0] = (unsigned char)((digest[1] + reductionIndex) % 256);   //8 bits
+	word[1] = (unsigned char)((digest[2] + reductionIndex) % 256);   //8 bits
+	word[2] = (unsigned char)((digest[3] + reductionIndex) % 256);   //8 bits
 }
-
 
 //------------  Read in the Table ------------------//
 //   Store the result in M and D 
@@ -129,34 +128,35 @@ bool TestCandidate(unsigned int d[maxDigestSize], unsigned char answer[maxWordSi
 	unsigned int curr_digest[maxDigestSize];
 
 	for (int i = 0; i < maxChainLength; i++)
-	{
-		Hash(curr_word, curr_digest);
-		if (i % 2 ==0) {
-			Reduce1(curr_digest, curr_word, i);
-		} else {
-			Reduce2(curr_digest, curr_word, i);
-		}
-
-		if (IsSameDigest(curr_digest, d))
-		{
-			is_valid_candidate = true;
-
-			answer[0] = curr_word[0];
-			answer[1] = curr_word[1];
-			answer[2] = curr_word[2];
-			break;
-		}
+    {
+        Hash(curr_word, curr_digest);
+	if(i%3==0){
+        Reduce1(curr_digest, curr_word, i);
+	}
+	else if(i%3==1){
+	Reduce2(curr_digest, curr_word, i);
+	}
+	else{
+	Reduce3(curr_digest,curr_word,i);
 	}
 
+        if (IsSameDigest(curr_digest, d))
+        {
+            is_valid_candidate = true;
+
+            answer[0] = curr_word[0];
+            answer[1] = curr_word[1];
+            answer[2] = curr_word[2];
+            break;
+        }
+    }
 	return is_valid_candidate;
 }
-
-
 
 //------------------------------------------------------------------------------------
 //      Given a digest,  search for the pre-image   answer_m[3].
 //------------------------------------------------------------------------------------
-bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
+bool Search1(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
 {
 	bool isFound = false;
 
@@ -192,7 +192,8 @@ bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxW
             isFound = TestCandidate(colour_digest[i], curr_answer);
 
             // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
-        } else{
+        }
+	else{
 		for (k = 0; k < i + 1; k++)
 		{
 		    Reduce2(colour_digest[k], colour_word[k], i);
@@ -207,6 +208,23 @@ bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxW
 
 		    // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
 		}
+		else{
+			for (k = 0; k < i + 1; k++)
+			{
+			    Reduce3(colour_digest[k], colour_word[k], i);
+			    Hash(colour_word[k], colour_digest[k]);
+			}
+
+			hashTableIterator = hashTable.find(colour_digest[i][0]);
+
+			if (hashTableIterator != hashTable.end())
+			{
+			    isFound = TestCandidate(colour_digest[i], curr_answer);
+
+			    // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
+			}
+		}
+		
 	}
 	if (isFound)
             {
@@ -215,9 +233,6 @@ bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxW
                 answer[2] = curr_answer[2];
             }
     }
-	
-	
-
 	return isFound;
 }
 
@@ -234,19 +249,13 @@ void SearchDigestFile(char* digest_file_name)
 
 	std::cout.setf(std::ios::hex, std::ios::basefield);  //   setting display to Hexdecimal format.  (this is the irritating part of using C++).
 	std::cout.setf(std::ios::uppercase);
-	
-	int reductionFunction1Count = 0;
-	int reductionFunction2Count = 0;
-	int reductionFunction3Count = 0;
 
 	for (int i = 0; i < 5000; i++)
 	{
 		ReadNextDigest(d, digest_file);
 
-		if (Search(d, curr_answer) == true)
+		if (Search1(d, curr_answer) == true)
 		{
-			cout << "Using Reduction Function 1" <<endl;
-			reductionFunction1Count++;
 			total_digests_found++;
 			//------   print the word in hexdecimal format   -----------
 			std::cout << std::setw(1) << (unsigned int)curr_answer[0] / 16;
@@ -257,7 +266,6 @@ void SearchDigestFile(char* digest_file_name)
 			std::cout << std::setw(1) << (unsigned int)curr_answer[2] % 8 << std::endl;
 
 		}
-
 		else
 		{
 			total_digests_not_found++;
@@ -270,9 +278,6 @@ void SearchDigestFile(char* digest_file_name)
 	std::cout.setf(std::ios::dec);
 	cout << "Accuracy       C is: " << total_digests_found / 5000.0 << endl;
 	cout << "Speedup factor F is: " << (5000.0 / TOTAL_SHA) * 8388608 << endl;
-	cout << "Number of Reduction Function 1 Use: " << reductionFunction1Count << endl;
-	cout << "Number of Reduction Function 2 Use: " << reductionFunction2Count << endl;
-	cout << "Number of Reduction Function 3 Use: " << reductionFunction3Count << endl;
 	cout << "Number of digests not found " << total_digests_not_found << endl;
 }
 
