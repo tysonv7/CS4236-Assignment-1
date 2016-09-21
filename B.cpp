@@ -77,7 +77,7 @@ int Reduce3 (unsigned int digest[maxDigestSize], unsigned char word[maxWordSize]
    return(0);
 }
 
-int buildT1()
+int buildT()
 {
   unsigned int  digest[maxDigestSize];
   unsigned char word[maxWordSize];
@@ -125,8 +125,6 @@ int buildT1()
 
     }
 
-
-
     //---    Write to the output file
     //note that to reduce the size of the table, it is not neccessary to write the full digest.
 
@@ -151,8 +149,8 @@ int main( int argc, char*argv[])
     //----  Setting the parameters
    
     //----   Build the table.
-    buildT1();
-    cout<<"Table Built. Exiting program now" <<endl;;
+    buildT();
+    cout<<"Table Built. Exiting program now" <<endl;
 	exit(0);
 }
 

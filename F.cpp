@@ -96,12 +96,12 @@ void ReadInRainbowTable(char* file_name)
 //-----------   reading the next digest from the standard input  ----------------//
 void ReadNextDigest(unsigned int d[maxDigestSize], std::ifstream &infile)
 {
-	unsigned int digest_fragment;
+	unsigned int digestFragment;
 
 	for (int i = 0; i < 5; i++)
 	{
-		infile >> std::hex >> digest_fragment;
-		d[i] = digest_fragment;
+		infile >> std::hex >> digestFragment;
+		d[i] = digestFragment;
 	}
 
 }
@@ -114,49 +114,46 @@ bool IsSameDigest(unsigned int d1[maxDigestSize], unsigned int d2[maxDigestSize]
 
 bool TestCandidate(unsigned int d[maxDigestSize], unsigned char answer[maxWordSize])
 {
-	bool is_valid_candidate;
+	bool isValidCandidate;
 
 	int i = hashTable[d[0]];
 
 	// find the head of the chain
-	unsigned char curr_word[maxWordSize];
+	unsigned char currWord[maxWordSize];
 
-	curr_word[0] = wordArray[i][0];
-	curr_word[1] = wordArray[i][1];
-	curr_word[2] = wordArray[i][2];
+	currWord[0] = wordArray[i][0];
+	currWord[1] = wordArray[i][1];
+	currWord[2] = wordArray[i][2];
 
-	unsigned int curr_digest[maxDigestSize];
+	unsigned int currDigest[maxDigestSize];
 
 	for (int i = 0; i < maxChainLength; i++)
     {
-        Hash(curr_word, curr_digest);
-	if(i%3==0){
-        Reduce1(curr_digest, curr_word, i);
-	}
-	else if(i%3==1){
-	Reduce2(curr_digest, curr_word, i);
-	}
-	else{
-	Reduce3(curr_digest,curr_word,i);
-	}
-
-        if (IsSameDigest(curr_digest, d))
+        Hash(currWord, currDigest);
+		if(i%3==0){
+			Reduce1(currDigest, currWord, i);
+		} else if(i%3==1){
+			Reduce2(currDigest, currWord, i);
+		} else {
+			Reduce3(currDigest, currWord, i);
+		}
+        if (IsSameDigest(currDigest, d))
         {
-            is_valid_candidate = true;
+            isValidCandidate = true;
 
-            answer[0] = curr_word[0];
-            answer[1] = curr_word[1];
-            answer[2] = curr_word[2];
+            answer[0] = currWord[0];
+            answer[1] = currWord[1];
+            answer[2] = currWord[2];
             break;
         }
     }
-	return is_valid_candidate;
+	return isValidCandidate;
 }
 
 //------------------------------------------------------------------------------------
 //      Given a digest,  search for the pre-image   answer_m[3].
 //------------------------------------------------------------------------------------
-bool Search1(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
+bool Search(unsigned int target_digest[maxDigestSize], unsigned char answer[maxWordSize])
 {
 	bool isFound = false;
 
@@ -190,8 +187,6 @@ bool Search1(unsigned int target_digest[maxDigestSize], unsigned char answer[max
         if (hashTableIterator != hashTable.end())
         {
             isFound = TestCandidate(colour_digest[i], curr_answer);
-
-            // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
         }
 	else{
 		for (k = 0; k < i + 1; k++)
@@ -205,8 +200,6 @@ bool Search1(unsigned int target_digest[maxDigestSize], unsigned char answer[max
 		if (hashTableIterator != hashTable.end())
 		{
 		    isFound = TestCandidate(colour_digest[i], curr_answer);
-
-		    // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
 		}
 		else{
 			for (k = 0; k < i + 1; k++)
@@ -220,8 +213,6 @@ bool Search1(unsigned int target_digest[maxDigestSize], unsigned char answer[max
 			if (hashTableIterator != hashTable.end())
 			{
 			    isFound = TestCandidate(colour_digest[i], curr_answer);
-
-			    // std::cout << curr_answer[0] << curr_answer[1] << curr_answer[2] << std::endl;
 			}
 		}
 		
@@ -254,7 +245,7 @@ void SearchDigestFile(char* digest_file_name)
 	{
 		ReadNextDigest(d, digest_file);
 
-		if (Search1(d, curr_answer) == true)
+		if (Search(d, curr_answer) == true)
 		{
 			total_digests_found++;
 			//------   print the word in hexdecimal format   -----------
@@ -276,6 +267,7 @@ void SearchDigestFile(char* digest_file_name)
 	digest_file.close();
 
 	std::cout.setf(std::ios::dec);
+	cout << "Number of times SHA1 invoked t is: " << TOTAL_SHA << endl;
 	cout << "Accuracy       C is: " << total_digests_found / 5000.0 << endl;
 	cout << "Speedup factor F is: " << (5000.0 / TOTAL_SHA) * 8388608 << endl;
 	cout << "Number of digests not found " << total_digests_not_found << endl;
