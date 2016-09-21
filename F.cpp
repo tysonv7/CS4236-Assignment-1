@@ -13,8 +13,8 @@
 using namespace std;
 unsigned long TOTAL_SHA = 0;       // Count the number of hashes performed.
 
-const int maxChainLength = 150;
-const int maxNumberOfChains = 86000;
+const int maxChainLength = 147;
+const int maxNumberOfChains = 85750;
 
 const int maxDigestSize = 5;
 const int maxWordSize = 3;
